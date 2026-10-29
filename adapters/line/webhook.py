@@ -31,6 +31,7 @@ from adapters.line.flex import parse_postback
 from adapters.line.push_gate import PushGate
 from adapters.line.signature import verify
 from adapters.storage import TenantStore, is_reserved_tenant, validate_tenant_id
+from core import brand
 
 MAX_BODY = 1_000_000
 WEBHOOK_PREFIX = "/webhook/"
@@ -228,7 +229,7 @@ class WebhookApp:
             return
         cmd = ctx.text.lower()
         if cmd in CMD_PING:
-            ctx.reply_text("收到 ✅ 這個官方帳號已經接上房仲自動化神器。")
+            ctx.reply_text(f"收到 ✅ 這個官方帳號已經接上{brand.NAME}。")
         elif ctx.is_owner_dm and cmd in CMD_PENDING:
             cards = ctx.gate.review_messages(limit=5)
             ctx.reply(cards or [_text("目前沒有等你審核的推播 👍")])

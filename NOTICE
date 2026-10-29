@@ -15,3 +15,9 @@ https://line.me/R/ti/p/@812ibtir
 
 依授權條款，轉散布本作品或其衍生作品時，請保留本 NOTICE 檔的上述署名內容。
 (Under Apache-2.0 Section 4(d), redistributions must retain this NOTICE attribution.)
+
+信義版修改（Modifications）
+--------------------------
+本目錄是 rea-kit 的修改版本（信義房屋店內使用）：加入全店共用買方與物件、店內物件表、
+ToEstate 行情查詢與信義綠品牌。修改的檔案與內容見 CHANGES-信義版.md。
+This directory contains a modified version of rea-kit; see CHANGES-信義版.md for the list of changed files.

@@ -268,7 +268,8 @@ class WizardFlowTests(unittest.TestCase):
         st, hdrs, page = self.call("/setup")
         self.assertTrue(st.startswith("200"))
         self.assertIn("一鍵串接精靈", page)
-        self.assertIn("https://lin.ee/pdYGARu", page)                                  # 租主機選項
+        self.assertNotIn("lin.ee", page)                                               # 信義版：沒有租主機廣告
+        self.assertIn("rea-kit", page)                                                 # 但保留原作者署名
         self.assertIn("HttpOnly", self.call("/setup?k=" + "t" * 40)[1]["Set-Cookie"])
         st, _, _ = self.call("/setup/api/line/keys", {"secret": SECRET, "token": TOKEN}, headers={"HTTP_X_REA_SETUP": ""})
         self.assertTrue(st.startswith("400"))                                            # 沒自訂標頭（CSRF）

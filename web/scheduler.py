@@ -36,6 +36,9 @@ class DailyScheduler:
                            opener=self.opener)
                 out.append((kind, res.ok))
                 self._health("gsheet_" + kind, res.ok, "" if res.ok else res.msg)
+                if res.ok and kind == "listings":       # 全店共用：新物件配到誰的買方就通知誰
+                    from web.jobs.team_notify import after_sheet_sync
+                    after_sheet_sync(self.app, res.data.get("new_ids"))
                 if not res.ok:
                     self.app._audit("gsheet_sync_failed", kind=kind)
             except Exception as e:

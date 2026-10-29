@@ -13,7 +13,7 @@ class TestCustomAdConsole(unittest.TestCase):
 
     def test_serve_line_print_is_guarded(self):
         src = (ROOT / "tools/serve_line.py").read_text(encoding="utf-8")
-        block = src[src.index("@812ibtir") - 400: src.index("@812ibtir") + 300]
+        block = src[src.index("署名詳見 NOTICE") - 400: src.index("署名詳見 NOTICE") + 300]
         self.assertRegex(block, r"try:[\s\S]*print\([\s\S]*except Exception:")
 
 

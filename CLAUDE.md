@@ -20,10 +20,18 @@
 ## 每次 commit 前
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+python tools/run_tests.py          # 原版測試用 solo 跑；全店共用與 ToEstate 測試自己切模式
 python tools/validate_skills.py
 python tools/pii_scan.py --all
 ```
+
+## 信義版
+
+- 全店共用（`adapters/team.py`）：客戶與物件放在 `sys-team`，每筆有 `owner`；LINE 互動用全店來源，
+  排程與隱私匯出／刪除用 `own_view()`。改別人的資料要擋（`NotOwner`）。新功能不要繞過這兩個來源直接讀寫租戶資料夾。
+- 行情（`adapters/toestate.py`）：ToEstate MCP，快取 6 小時、每日上限、429 當天停；行政區失敗改內政部。
+- 品牌集中在 `core/brand.py`，不要在別處寫死顏色或產品名稱。
+- 修改清單記在 `CHANGES-信義版.md`（Apache-2.0 §4(b)）。
 
 `tools/pii_scan.py` 可以掛 pre-commit（`python tools/install_hooks.py`）；本機另有不入版控的識別字清單 `tools/identifiers.txt`（格式見 `identifiers.example.txt`）。
 

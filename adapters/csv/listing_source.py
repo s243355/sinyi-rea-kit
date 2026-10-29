@@ -23,12 +23,12 @@ from adapters.storage import TenantStore
 from core.listing_diff import MATERIAL_FIELDS, listing_fingerprint
 
 LISTING_ALIASES: dict[str, tuple[str, ...]] = {
-    "id": ("id", "listing_id", "物件編號", "物件代號", "案件編號", "案號", "編號"),
+    "id": ("id", "listing_id", "物件編號", "物件代號", "案件編號", "案號", "編號", "委託編號", "案件代號"),
     "title": ("title", "案名", "物件名稱", "標題", "名稱", "社區名稱"),
     "transaction": ("transaction", "交易", "交易類別", "租售", "出售出租", "買賣", "類別"),
     "city": ("city", "縣市"),
     "area": ("area", "district", "區域", "行政區", "鄉鎮市區", "地區"),
-    "price": ("price", "總價", "售價", "開價", "價格", "租金", "月租"),
+    "price": ("price", "總價", "售價", "開價", "價格", "租金", "月租", "委託價", "售價(萬)", "總價(萬)"),
     "property_type": ("property_type", "型態", "物件類型", "建物型態", "類型", "用途"),
     "rooms": ("rooms", "房數", "格局", "房"),
     "size_ping": ("size_ping", "坪數", "建坪", "權狀坪數", "登記坪數", "建物面積", "面積"),
@@ -39,6 +39,8 @@ LISTING_ALIASES: dict[str, tuple[str, ...]] = {
     "listed_at": ("listed_at", "上架日", "上架日期", "刊登日", "刊登日期"),
     "online": ("online", "上架", "是否上架", "刊登狀態", "銷售狀態", "狀態"),
     "source": ("source", "來源"),
+    # 全店共用：這間是哪位同仁的（對到名冊上的名字，配對通知就會找他）。只收名字，不收電話。
+    "agent_name": ("agent_name", "負責同仁", "經紀人", "承辦人", "承辦經紀人", "開發同仁", "負責人"),
 }
 SENSITIVE_WORDS = ("地址", "門牌", "屋主", "所有權人", "業主", "電話", "手機", "身分證", "email", "e-mail",
                    "備註", "聯絡")
@@ -101,7 +103,15 @@ def normalize_row(row: Mapping[str, str], mapping: Mapping[str, str], *, default
         "listed_at": P.parse_date(get("listed_at")),
         "online": True if online is None else online,
         "source": get("source").strip()[:40] or source,
+        "agent_name": _agent(get("agent_name")),
     }
+
+
+def _agent(value: str) -> str | None:
+    """負責同仁欄：只留名字（12 字內），像電話、email 的整格丟掉。"""
+    import re
+    v = (value or "").strip()[:12]
+    return None if not v or re.search(r"\d{6,}|@", v) else v
 
 
 class CsvListingSource:
@@ -163,7 +173,8 @@ class CsvListingSource:
                     rep.unchanged_count += 1
             if replace:
                 for lid, old in snap.items():
-                    if lid not in parsed and old.get("online"):
+                    # 只下架「同一個來源」沒出現的：店內物件表同步不能把同仁在 LINE 上新增的物件當成下架
+                    if lid not in parsed and old.get("online") and old.get("source", source) == source:
                         snap[lid] = {**old, "online": False, "offline_reason": "not_in_latest_import",
                                      "updated_at": ts}
                         rep.removed_ids.append(lid)

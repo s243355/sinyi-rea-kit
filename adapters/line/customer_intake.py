@@ -353,7 +353,6 @@ def make_intake_handler(customers: CsvCustomerSource, *, listings=None, now=date
                     pages = max(1, (len(rows) + 9) // 10)
                     if not 1 <= page <= pages:
                         raise ValueError("頁碼超出範圍")
-                    lines = [f"{c['customer_id']}｜{c.get('label') or '未命名'}｜{c['status']}" for c in rows[(page-1)*10:page*10]]
                     if not rows:
                         replies = [message("還沒有客人。按「新增買方」建第一位，存好會自動比對你的物件。"
                                            if command == "客戶清單" else "找不到符合的客人。", ("新增買方", "客戶清單"))]
@@ -428,7 +427,8 @@ def customer_cards(rows: list[dict]) -> dict:
     for c in rows[:flex.MAX_CAROUSEL]:
         cid, paused = c["customer_id"], c.get("status") != "active"
         bubbles.append(flex.action_card(
-            (c.get("label") or "未命名") + ("（暫停中）" if paused else ""),
+            (c.get("label") or "未命名") + (f"（{c['owner_name']}）" if c.get("owner_name") else "")
+            + ("（暫停中）" if paused else ""),
             [need_line(c.get("need_card") or {}), f"編號 {cid}"],
             [("看需求・找房", f"需求 {cid}"), ("修改需求", f"修改需求 {cid}"),
              ("恢復配對" if paused else "暫停配對", f"{'恢復' if paused else '暫停'} {cid}")]))

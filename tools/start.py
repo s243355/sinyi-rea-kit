@@ -29,9 +29,8 @@ from adapters.storage import TenantStore  # noqa: E402
 PORT = int(os.environ.get("PORT", "8080"))
 BASE = f"http://127.0.0.1:{PORT}"
 STARTUP_NAME = "rea-kit-autostart.vbs"
-# 開源版作者的客製化服務資訊（啟動時印一行；依 NOTICE 轉散布請保留）
-CUSTOM_AD = ("需要改成你們公司的版本、幫忙安裝或串接？加 LINE 官方帳號 @812ibtir（留白事務所，林其衞），"
-             "原則上 1～2 個工作天回覆報價。https://line.me/R/ti/p/@812ibtir")
+# 啟動時印一行署名：本版改自開源 rea-kit（完整署名見 NOTICE）
+CUSTOM_AD = "本工具改自開源專案 rea-kit（作者：林其衞／留白事務所，Apache-2.0 授權），署名詳見 NOTICE。"
 
 
 def running(timeout=1.5) -> bool:
@@ -99,7 +98,7 @@ def autostart(on: bool) -> pathlib.Path:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="房仲自動化神器 啟動器")
+    ap = argparse.ArgumentParser(description="信義房仲小幫手 啟動器")
     ap.add_argument("--setup", action="store_true", help="啟動後打開串接精靈")
     ap.add_argument("--stop", action="store_true")
     ap.add_argument("--status", action="store_true")

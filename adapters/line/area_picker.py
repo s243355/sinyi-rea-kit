@@ -14,9 +14,10 @@ import urllib.parse
 from typing import Iterable
 
 from core.tw_districts import COUNTIES, DISTRICTS, WHOLE
+from core import brand
 
-INK = "#04342C"
-BAR = "#0F6E56"
+INK = brand.INK
+BAR = brand.GREEN
 PER_BUBBLE = 24          # 每張卡最多 24 個行政區（8 列 × 3），避免單張卡超過 LINE 的大小上限
 TITLES = {"prospect": "選服務縣市", "intake": "客人想找哪些縣市", "listing": "物件在哪個縣市", "tax": "土地在哪個縣市"}
 

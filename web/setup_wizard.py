@@ -24,19 +24,21 @@ HERE = pathlib.Path(__file__).resolve().parent
 COOKIE = "rea_setup"
 FORWARD_HEADERS = ("HTTP_X_FORWARDED_FOR", "HTTP_X_FORWARDED_HOST", "HTTP_X_REAL_IP", "HTTP_FORWARDED",
                    "HTTP_CF_CONNECTING_IP", "HTTP_CF_RAY", "HTTP_TRUE_CLIENT_IP", "HTTP_X_ORIGINAL_FORWARDED_FOR")
-RENT_URL = "https://lin.ee/pdYGARu"
+RENT_URL = ""                   # 信義版不提供租主機（原版的租主機連結已拿掉）
 MAX_BODY = 20_000
 # Google 試算表範本（第二列是假資料；電話、地址、身分證不要放，放了也不會匯入）
 TEMPLATES = {
     "customers": "客戶編號,稱呼,買或租,需求區域,預算(萬),需求型態,需求房數,狀態\r\n"
                  "A001,範例客戶甲,買,台中市西屯區、台中市南屯區,1200,電梯大樓,3,進行中\r\n",
-    "listings": "物件編號,案名,交易,縣市,區域,總價(萬),型態,格局,坪數,屋齡,網址,上架日,狀態\r\n"
-                "S-001,範例景觀三房,出售,台中市,西屯區,1180,電梯大樓,3房2廳2衛,32.5,8,https://example.com/l/S-001,2026-10-01,銷售中\r\n",
+    # 店內物件表：「負責同仁」填管理員面板登記的名字，配到買方時會通知那位同仁
+    "listings": "物件編號,案名,交易,縣市,區域,總價(萬),型態,格局,坪數,屋齡,網址,上架日,狀態,負責同仁\r\n"
+                "S-001,範例景觀三房,出售,台中市,西屯區,1180,電梯大樓,3房2廳2衛,32.5,8,https://example.com/l/S-001,2026-10-01,銷售中,範例同仁\r\n",
 }
 GROUPS = {
     "line": ("REA_SHARED_LINE_SECRET", "REA_SHARED_LINE_TOKEN", "REA_PUBLIC_BASE", "REA_ADMIN_USERS", "REA_SIGNUP_MODE"),
     "gsheet": ("REA_GSHEET_CUSTOMERS_URL", "REA_GSHEET_LISTINGS_URL"),
     "lvr": ("REA_LVR_COUNTIES",),
+    "toestate": ("REA_TOESTATE_URL", "REA_TOESTATE_KEY", "REA_TOESTATE_DAILY_CAP"),
     "moi": ("REA_MOI_CLIENT_ID", "REA_MOI_SECRET", "REA_MOI_DAILY_LIMIT"),
     "search": ("REA_SEARCH_PROVIDER", "REA_SEARCH_KEY"),
 }
@@ -105,10 +107,14 @@ def make_setup_app(holder, settings: SettingsStore, *, token: str | None = None,
                      "error": holder.error},
             "gsheet": {"customers": st["REA_GSHEET_CUSTOMERS_URL"], "listings": st["REA_GSHEET_LISTINGS_URL"]},
             "lvr": {"counties": settings.get("REA_LVR_COUNTIES")},
+            "toestate": {"url": settings.get("REA_TOESTATE_URL") or "", "key": st["REA_TOESTATE_KEY"],
+                         "off": (settings.get("REA_TOESTATE_URL") or "").lower() == "off",
+                         "default_city": settings.get("REA_DEFAULT_CITY") or "台中市"},
             "moi": {"keys": st["REA_MOI_CLIENT_ID"] and st["REA_MOI_SECRET"],
                     "daily_limit": settings.get("REA_MOI_DAILY_LIMIT") or "20"},
             "search": {"provider": settings.get("REA_SEARCH_PROVIDER"), "key": st["REA_SEARCH_KEY"]},
             "signup_mode": "open" if settings.get("REA_SIGNUP_MODE") == "open" else "invite",
+            "team_mode": "solo" if settings.get("REA_TEAM_MODE") == "solo" else "shared",
             "health": integration_status.load(settings),
             "rent_url": RENT_URL,
         }
@@ -179,12 +185,41 @@ def make_setup_app(holder, settings: SettingsStore, *, token: str | None = None,
             return C.Check(False, "不認得的試算表種類。")
         res = sync(kind, tenant, customers=holder.app.customers, listings=holder.app.listings, **kw)
         integration_status.record("gsheet_" + kind, res.ok, "" if res.ok else res.msg, settings=settings)
+        if res.ok and kind == "listings":
+            from web.jobs.team_notify import after_sheet_sync
+            told = after_sheet_sync(holder.app, res.data.get("new_ids"))
+            if told:
+                res.msg = res.msg.rstrip("。") + f"。新物件配到 {len(told)} 位同仁的買方，已用 LINE 通知他們。"
         return res
 
     def lvr_check(b):
         r = C.check_lvr(b.get("counties", ""), **kw)
         if r.ok:
             settings.save({"REA_LVR_COUNTIES": "、".join(r.data["counties"])})
+        return r
+
+    def toestate_check(b):
+        url = (b.get("url") or "").strip()
+        city = (b.get("default_city") or "").replace("臺", "台").strip()
+        if city:
+            from core.tw_districts import DISTRICTS
+            if city not in DISTRICTS:
+                return C.Check(False, "預設縣市看不懂，請從選單選。")
+        if url.lower() == "off":
+            settings.save({"REA_TOESTATE_URL": "off", **({"REA_DEFAULT_CITY": city} if city else {})})
+            holder.reload()
+            return C.Check(True, "已關閉 ToEstate，行情查詢只用內政部資料（只有行政區概況）。")
+        key = (b.get("key") or "").strip() or settings.get("REA_TOESTATE_KEY") or ""
+        r = C.check_toestate(url, key, **kw)
+        if r.ok:
+            updates = {"REA_TOESTATE_URL": url}
+            if (b.get("key") or "").strip():
+                updates["REA_TOESTATE_KEY"] = key
+            if city:
+                updates["REA_DEFAULT_CITY"] = city
+            settings.save(updates)
+            holder.reload()
+            r.msg = r.msg.rstrip("。") + "。已存好；同仁在 LINE 打「行情 社區名」就會用 ToEstate 查。"
         return r
 
     def lvr_query(b):
@@ -254,6 +289,16 @@ def make_setup_app(holder, settings: SettingsStore, *, token: str | None = None,
         return C.Check(True, "已改成：" + ("只有我邀請的人能用（在管理員面板按「邀請新成員」發綁定碼）。" if mode == "invite"
                                          else "任何加好友的人按「同意並開始」就能用（每天新加入有上限）。"))
 
+    def team_mode(b):
+        mode = b.get("mode")
+        if mode not in ("shared", "solo"):
+            return C.Check(False, "請選一個選項。")
+        settings.save({"REA_TEAM_MODE": mode})
+        holder.reload()
+        return C.Check(True, "已改成：" + ("全店共用：大家的買方與物件互相看得到，新物件會配到全店的買方；只有建立的人和店長能修改。"
+                                         if mode == "shared" else "各自獨立：每個人的客人和物件互相看不到。")
+                       + "（切換前已經建的資料不會自動搬家，建議開始用之前就決定好。）")
+
     def line_claim(b):
         if holder.app is None:
             return C.Check(False, "要先完成 LINE 第 3 步（金鑰）和第 4 步（Webhook）。")
@@ -268,7 +313,8 @@ def make_setup_app(holder, settings: SettingsStore, *, token: str | None = None,
         return C.Check(True, "已取消這個串接，金鑰已從這台電腦刪除。")
 
     ROUTES = {"line/keys": line_keys, "line/webhook": line_webhook, "line/claim": line_claim, "line/signup": line_signup,
-              "gsheet/check": gsheet_check, "gsheet/sync": gsheet_sync, "lvr/check": lvr_check, "lvr/query": lvr_query,
+              "team/mode": team_mode,
+              "gsheet/check": gsheet_check, "gsheet/sync": gsheet_sync, "lvr/check": lvr_check, "toestate/check": toestate_check, "lvr/query": lvr_query,
               "moi/check": moi_check, "moi/query": moi_query, "search/check": search_check, "clear": clear}
 
     def wsgi(environ, start_response):
@@ -325,7 +371,7 @@ def make_setup_app(holder, settings: SettingsStore, *, token: str | None = None,
             except Exception as e:                       # 不讓精靈白畫面；也不把例外內容（可能含網址）整段吐出
                 import traceback
                 traceback.print_exc()                    # 只進本機 server.log，不回給畫面
-                res = C.Check(False, f"發生沒預料到的錯誤（{type(e).__name__}），請截圖這個畫面到 LINE @812ibtir 問我們。")
+                res = C.Check(False, f"發生沒預料到的錯誤（{type(e).__name__}），請截圖這個畫面給店長或負責架設的人。")
             return js(start_response, res.as_dict())
         return js(start_response, {"ok": False, "msg": "not found"}, "404 Not Found")
 

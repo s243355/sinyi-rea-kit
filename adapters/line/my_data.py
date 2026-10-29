@@ -13,6 +13,7 @@ import io
 
 from adapters.line import agent_profile
 from adapters.line.customer_intake import message
+from core import brand
 
 STATE = ("line", "my_data.json")
 PRIVACY, NOTICE, EXPORT, DELETE, CONFIRM = "隱私說明", "客人告知範本", "匯出我的資料", "刪除我的資料", "確定刪除我的資料"
@@ -23,7 +24,7 @@ LISTING_FIELDS = ("id", "transaction", "area", "road", "title", "price", "price_
                   "size_ping", "age_years", "parking", "elevator", "url", "online", "listed_at")
 
 PRIVACY_TEXT = (
-    "房仲自動化神器替你保存的資料：\n"
+    f"{brand.NAME}替你保存的資料：\n"
     "・你建的客人需求（暱稱、地區、預算、型態…，不收電話和身分證）\n"
     "・你新增的物件、海巡設定、你的品牌與署名\n"
     "・推播紀錄（只記則數，不留別人的貼文內容）\n\n"
@@ -66,7 +67,7 @@ def _chunks(text: str) -> list[str]:
 def export_messages(customers, listings, tenant_id: str) -> list[dict]:
     people = customers.list_customers(tenant_id, active_only=False)
     rows = listings.list_all(tenant_id) if listings else []
-    head = (f"這是你存在房仲自動化神器的資料：客人 {len(people)} 位、物件 {len(rows)} 間。\n"
+    head = (f"這是你存在{brand.NAME}的資料：客人 {len(people)} 位、物件 {len(rows)} 間。\n"
             "複製下面的文字貼到記事本，存成 .csv 就能用 Excel 開。")
     msgs, cut = [message(head)], False
     for name, text in (("客人", customers.export(tenant_id)), ("物件", _csv(rows, LISTING_FIELDS))):
@@ -113,7 +114,13 @@ def make_my_data_handler(store, customers, listings, *, registry, now=datetime.d
                 ctx.reply([message(f"要刪除請先打「{DELETE}」，看清楚會刪什麼再確認。", (DELETE,))])
                 return
             registry().unbind_tenant(tenant)
+            # 全店共用時客人與物件放在店資料夾，刪租戶資料夾刪不到，要另外把「自己建的」刪掉
+            customers.delete_all(tenant)
+            if listings:
+                listings.delete_all(tenant)
+            from adapters import team
+            team.drop_name(store, tenant)
             store.delete_tenant(tenant)
-            ctx.reply([message("✓ 已刪除你在房仲自動化神器的全部資料，也解除了這個 LINE 的綁定。\n"
+            ctx.reply([message(f"✓ 已刪除你在{brand.NAME}的全部資料，也解除了這個 LINE 的綁定。\n"
                                "備份會在 14 天內輪替消失。之後想再用，按「同意並開始」就好。")])
     return handler

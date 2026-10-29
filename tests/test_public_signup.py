@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 import test_customer_intake as support
+from core import brand
 from adapters.line.fake_api import synthetic_line_id
 from adapters.line.shared import BindingRegistry, SYS_TENANT, TERMS_VERSION
 from adapters.storage import TenantStore
@@ -27,7 +28,7 @@ class SignupTests(unittest.TestCase):
         self.send("同意並開始", user=NEW)
         tenant = self.app.registry.tenant_of(NEW)
         self.assertTrue(tenant and tenant.startswith("a") and NEW not in tenant)     # 資料夾名稱看不出 LINE 帳號
-        self.assertEqual(self.api.replies[-1]["messages"][1]["altText"], "歡迎使用房仲自動化神器")
+        self.assertEqual(self.api.replies[-1]["messages"][1]["altText"], f"歡迎使用{brand.NAME}")
         consent = self.store.read_json(tenant, "line", "consent.json")
         self.assertEqual(consent["terms"], TERMS_VERSION)
         self.assertIn("客戶暱稱", self.send("新增買方", user=NEW)["text"])          # 直接能用

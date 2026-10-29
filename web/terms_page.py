@@ -10,6 +10,7 @@ import html
 import os
 import pathlib
 import re
+from core import brand
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS = (ROOT / "docs" / "法遵" / "使用條款.md", ROOT / "docs" / "法遵" / "委託處理條款.md")
@@ -77,13 +78,13 @@ def render(provider: str | None = None) -> bytes:
         md = md.replace("（簽署時填寫；改由公司提供時填 {公司名稱}）", "").replace("{提供者姓名}", name)
         parts.append(markdown(md))
     style = ("body{font-family:system-ui,'Microsoft JhengHei',sans-serif;margin:0 auto;max-width:760px;padding:24px 18px;"
-             "background:#fff;color:#1d2420;line-height:1.7}h1{font-size:24px;color:#0F6E56}h2{font-size:20px;"
-             "color:#0F6E56;border-top:1px solid #dfe7e3;padding-top:18px}h3{font-size:17px;margin-top:22px}"
+             "background:#fff;color:#1d2420;line-height:1.7}h1{font-size:24px;color:" + brand.GREEN + "}h2{font-size:20px;"
+             "color:" + brand.GREEN + ";border-top:1px solid #dfe7e3;padding-top:18px}h3{font-size:17px;margin-top:22px}"
              "li,p,td,th{font-size:16px}table{border-collapse:collapse;width:100%;margin:8px 0}"
-             "td,th{border:1px solid #dfe7e3;padding:6px 8px;text-align:left;vertical-align:top}th{background:#E1F5EE}")
+             "td,th{border:1px solid #dfe7e3;padding:6px 8px;text-align:left;vertical-align:top}th{background:" + brand.TINT + "}")
     doc = ("<!doctype html><html lang='zh-Hant'><head><meta charset='utf-8'>"
            "<meta name='viewport' content='width=device-width,initial-scale=1'><meta name='robots' content='noindex'>"
-           "<title>房仲自動化神器 服務條款</title><style>" + style + "</style></head><body>"
+           "<title>" + brand.NAME + " 服務條款</title><style>" + style + "</style></head><body>"
            + "\n<hr>\n".join(parts) + "</body></html>")
     return doc.encode("utf-8")
 

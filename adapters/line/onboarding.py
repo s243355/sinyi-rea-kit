@@ -1,4 +1,6 @@
 """歡迎卡與新手體驗。負責人 2026-10-04：「要上線了，給大家使用」→ 加好友按「同意並開始」就能用（不用綁定碼）。"""
+from core import brand
+
 
 PROFILE = ("line", "demo_profile.json")
 MORE_WORDS = {"更多功能", "更多", "功能選單", "選單"}
@@ -17,7 +19,7 @@ def card(title, text, choices):
                              {"type": "text", "text": text, "wrap": True, "size": "sm", "margin": "md"}]},
                 "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": [
                     {"type": "button", "action": _action(label, command),
-                     **({"style": "primary", "color": "#0F6E56"} if i == 0 else {})}
+                     **({"style": "primary", "color": brand.GREEN} if i == 0 else {})}
                     for i, (label, command) in enumerate(choices)]}}}
 
 
@@ -29,10 +31,10 @@ INTRO = ("給房仲、土地開發、不動產業務用的 LINE 小幫手：\n"
 
 def welcome(bound=False, terms_url=None):
     if bound:
-        return card("歡迎使用房仲自動化神器", "第一次使用按「開始新手體驗」；之後直接點下面的功能，或聊天室下方的選單。",
+        return card(f"歡迎使用{brand.NAME}", "第一次使用按「開始新手體驗」；之後直接點下面的功能，或聊天室下方的選單。",
                     [("開始新手體驗", "新手體驗"), ("新增物件・配對買方", "新增物件"), ("替買方找房", "新增買方"),
                      ("找新買方", "找新買方"), ("客戶清單", "客戶清單"), ("我的資料", "我的資料")])
-    return card("歡迎使用房仲自動化神器", INTRO + "\n不用下載、不用填資料，按「同意並開始」就能用。"
+    return card(f"歡迎使用{brand.NAME}", INTRO + "\n不用下載、不用填資料，按「同意並開始」就能用。"
                 "按下即表示同意服務條款與個資委託處理條款。",
                 [("同意並開始", "同意並開始")] + ([("看服務條款", terms_url)] if terms_url else []))
 
@@ -64,6 +66,8 @@ def make_onboarding_handler(store, *, now, is_admin=None):
                       ("客人與物件", ["客戶清單、我的物件都是卡片，按鈕直接點"],
                        [("客戶清單", "客戶清單"), ("我的物件", "我的物件"), ("新增買方", "新增買方"),
                         ("新增物件", "新增物件")]),
+                      ("查行情", ["打「行情 社區名」或「行情 行政區」", "實價登錄概況，不是估價"],
+                       [("怎麼查行情", "行情")]),
                       ("工具與設定", ["你的品牌與署名、隱私與資料"],
                        [("我的資料", "我的資料"), ("隱私說明", "隱私說明")])]
             if is_admin and is_admin(ctx.user_id):           # 管理員才看得到這張

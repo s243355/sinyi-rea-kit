@@ -20,6 +20,9 @@ import urllib.parse
 from collections import Counter
 from http.cookies import SimpleCookie
 
+from adapters import team
+from core import brand
+
 SYS = "sys-line-shared"
 TOKENS = ("admin", "login_tokens.json")
 SESSIONS = ("admin", "sessions.json")
@@ -115,14 +118,15 @@ def tenant_rows(app) -> list[dict]:
         profile = (store.read_json(t, "line", "agent_profile.json", default={}) or {}).get("profile") or {}
         run = store.read_json(t, "jobs", "daily_brief_runs.json", default={}) or {}
         try:
-            n_cust = len(app.customers.list_customers(t))
+            n_cust = len(app.customers.list_customers(t, active_only=False))
         except Exception:
             n_cust = 0
         try:
             n_list = len(app.listings.list_all(t)) if getattr(app, "listings", None) else 0
         except Exception:
             n_list = 0
-        rows.append({"tenant": t, "bound": bool(b), "joined": (b.get("at") or "")[:16].replace("T", " "),
+        roster = store.read_json(team.TEAM_TENANT, *team.ROSTER, default={}) or {}
+        rows.append({"tenant": t, "name": roster.get(t) or "", "bound": bool(b), "joined": (b.get("at") or "")[:16].replace("T", " "),
                      "self_signup": bool(b.get("self")), "plan": _plan_label(app.plans.status(t)) if app.plans else "—",
                      "customers": n_cust, "listings": n_list, "areas": _areas(prospect),
                      "brand": profile.get("brand") or "", "signature": profile.get("signature") or "",
@@ -158,14 +162,12 @@ def overview(app) -> dict:
 
 # ── 頁面 ───────────────────────────────────────────────────────────────────
 
-# 開源版作者的客製化服務資訊：只在管理員面板頁尾，不會傳給客戶（依 NOTICE 轉散布請保留）
-CUSTOM_AD_HTML = ("<p class='custom-ad'>需要改成你們公司的版本、幫忙安裝或串接？加 LINE 官方帳號 "
-                  "<a href='https://line.me/R/ti/p/@812ibtir' target='_blank' rel='noopener'>@812ibtir</a>"
-                  "（留白事務所，林其衞），原則上 1～2 個工作天回覆報價。</p>")
+# 頁尾署名：本版改自開源 rea-kit（完整署名見 NOTICE，轉散布時 NOTICE 檔要保留）
+CUSTOM_AD_HTML = "<p class='custom-ad'>" + html.escape(brand.ATTRIBUTION) + "</p>"
 
 STYLE = """
-:root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--sub:#6e6e73;--line:#e5e5ea;--brand:#0F6E56;--tint:#E1F5EE;--warn:#b54708}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--ink:#f5f5f7;--sub:#a1a1a6;--line:#2c2c2e;--tint:#0c3b2f}}
+:root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--sub:#6e6e73;--line:#e5e5ea;--brand:""" + brand.GREEN + """;--tint:""" + brand.TINT + """;--warn:#b54708}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--ink:#f5f5f7;--sub:#a1a1a6;--line:#2c2c2e;--tint:#0b3a20}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);
 font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.5}
 header{position:sticky;top:0;z-index:2;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(18px);
@@ -200,8 +202,8 @@ def _page(title: str, body: str, tab: str = "") -> bytes:
     nav = "".join(f"<a class='{'on' if k == tab else ''}' href='/admin/{k}'>{_e(n)}</a>" for k, n in TABS)
     doc = ("<!doctype html><html lang='zh-Hant'><head><meta charset='utf-8'>"
            "<meta name='viewport' content='width=device-width,initial-scale=1'><meta name='robots' content='noindex'>"
-           f"<title>{_e(title)}｜房仲自動化神器 管理</title><style>{STYLE}</style></head><body>"
-           f"<header><h1>房仲自動化神器 管理員面板</h1><nav>{nav}</nav></header><main>{body}</main>{CUSTOM_AD_HTML}</body></html>")
+           f"<title>{_e(title)}｜{_e(brand.NAME)} 管理</title><style>{STYLE}</style></head><body>"
+           f"<header><h1>{_e(brand.NAME)} 管理員面板</h1><nav>{nav}</nav></header><main>{body}</main>{CUSTOM_AD_HTML}</body></html>")
     return doc.encode("utf-8")
 
 
@@ -209,6 +211,15 @@ def _form(action: str, label: str, csrf: str, extra: dict | None = None, cls: st
     hidden = "".join(f"<input type='hidden' name='{_e(k)}' value='{_e(v)}'>" for k, v in (extra or {}).items())
     return (f"<form method='post' action='/admin/act'><input type='hidden' name='csrf' value='{_e(csrf)}'>"
             f"<input type='hidden' name='do' value='{_e(action)}'>{hidden}<button class='{cls}'>{_e(label)}</button></form>")
+
+
+def _name_form(action: str, label: str, csrf: str, extra: dict | None = None, value: str = "") -> str:
+    """帶一格「姓名」的表單（邀請新成員、改顯示名稱）。"""
+    hidden = "".join(f"<input type='hidden' name='{_e(k)}' value='{_e(v)}'>" for k, v in (extra or {}).items())
+    return (f"<form method='post' action='/admin/act'><input type='hidden' name='csrf' value='{_e(csrf)}'>"
+            f"<input type='hidden' name='do' value='{_e(action)}'>{hidden}"
+            f"<input name='name' maxlength='12' placeholder='同仁姓名（例：家儒）' value='{_e(value)}'> "
+            f"<button>{_e(label)}</button></form>")
 
 
 def page_overview(app, sess) -> bytes:
@@ -251,15 +262,20 @@ def page_agents(app, sess) -> bytes:
                  + ("<span class='pill'>我的 LINE</span>" if r["tenant"] == me else ""))
         last = (f"最後報告 {r['last_run']}：貼文 {r['last_posts']}、配對 {r['last_listings']}、推播 {r['last_push']}"
                 if r["last_run"] else "還沒有報告")
-        who = "・".join(x for x in (r["brand"], r["signature"]) if x)
+        who = "・".join(x for x in (r.get("name"), r["brand"], r["signature"]) if x)
         items.append(f"<div class='row'><div class='t'>{_e(who or r['tenant'])}</div>"
                      f"<div class='s'>{_e(r['tenant'])}・加入 {_e(r['joined'] or '—')}</div><div>{pills}</div>"
                      f"<div class='s'>買方 {r['customers']}・物件 {r['listings']}・海巡：{_e(r['areas'])}</div>"
                      f"<div class='s'>{_e(last)}</div><div>"
                      + _form("bind_me", "把我的 LINE 接到這個帳號", sess["csrf"], {"tenant": r["tenant"]}, "sec")
-                     + _form("bind_code", "發綁定碼", sess["csrf"], {"tenant": r["tenant"]}, "sec") + "</div></div>")
-    invite = ("<div class='row'>" + _form("invite", "＋ 邀請新成員", sess["csrf"])
-              + "<p class='hint'>產生 6 位數綁定碼給新成員；他加好友後傳這組數字就能開始用。</p></div>")
+                     + _form("bind_code", "發綁定碼", sess["csrf"], {"tenant": r["tenant"]}, "sec")
+                     + _name_form("rename", "改顯示名稱", sess["csrf"], {"tenant": r["tenant"]}, r.get("name") or "")
+                     + "</div></div>")
+    shared = team.is_shared()
+    invite = ("<div class='row'>" + _name_form("invite", "＋ 邀請新成員", sess["csrf"])
+              + "<p class='hint'>產生 6 位數綁定碼給新成員；他加好友後傳這組數字就能開始用。"
+              + ("姓名會顯示在配對卡上（例：「王先生（家儒的客人）」），讓同仁知道要找誰。" if shared else "")
+              + "</p></div>")
     body = (f"<div class='card'><h2>仲介 {len(rows)} 位</h2>" + invite + ("".join(items) or "<div class='row'>還沒有人</div>")
             + "<p class='hint'>只顯示數量，不顯示客人的暱稱與需求內容。</p></div>")
     return _page("仲介", body, "agents")
@@ -319,12 +335,28 @@ def act(app, sess, form: dict) -> bytes:
         code = app.registry.issue_code(tenant)
         return page_message("綁定碼", f"帳號 {tenant} 的綁定碼（15 分鐘內有效）：",
                             f"<div class='code'>{_e(code)}</div><p class='hint'>請那支 LINE 對官方帳號直接傳這 6 個數字。</p>")
+    if do == "rename" and tenant in known:
+        try:
+            name = team.set_name(app.store, tenant, form.get("name", ""))
+        except ValueError as e:
+            return page_message("沒有改成", str(e), "<p><a href='/admin/agents'>回仲介頁</a></p>")
+        return page_message("已改名", f"{tenant} 現在顯示為「{name}」。", "<p><a href='/admin/agents'>回仲介頁</a></p>")
     if do == "invite":
-        new = "m" + secrets.token_hex(7)                       # 新成員自己的資料夾（跟其他人完全分開）
+        name = (form.get("name") or "").strip()
+        if name:
+            try:
+                team.clean_name(name)
+            except ValueError as e:
+                return page_message("沒有邀請", str(e), "<p><a href='/admin/agents'>回仲介頁</a></p>")
+        new = "m" + secrets.token_hex(7)                       # 新成員自己的帳號（綁定、草稿、推播額度各自一份）
+        if name:
+            team.set_name(app.store, new, name)
         code = app.registry.issue_code(new)
         return page_message("邀請新成員", "請新成員用手機加官方帳號好友，然後直接傳這 6 個數字（15 分鐘內有效）：",
-                            f"<div class='code'>{_e(code)}</div><p class='hint'>每位成員一個獨立帳號，客人與物件互相看不到。"
-                            "過期了回來再按一次「邀請新成員」。</p><p><a href='/admin/agents'>回仲介頁</a></p>")
+                            f"<div class='code'>{_e(code)}</div><p class='hint'>"
+                            + ("全店共用模式：大家的買方與物件互相看得到、互相配對；只有建立的人和店長能修改。"
+                               if team.is_shared() else "每位成員一個獨立帳號，客人與物件互相看不到。")
+                            + "過期了回來再按一次「邀請新成員」。</p><p><a href='/admin/agents'>回仲介頁</a></p>")
     if do == "bind_me" and tenant in known:
         owner = app.registry.user_of(tenant)
         if owner and owner != me:                              # 不能把正在使用的仲介踢掉（一個帳號只綁一支 LINE）
@@ -364,7 +396,7 @@ def make_admin_app(app, auth: AdminAuth):
         sid = jar[COOKIE].value if COOKIE in jar else None
         sess = auth.session(sid)
         if not sess or sess["user"] not in admins():
-            return send(page_message("請先登入", "在 LINE 對「房仲自動化神器」官方帳號點「更多功能」→「管理員面板」，"
+            return send(page_message("請先登入", f"在 LINE 對「{brand.NAME}」官方帳號點「更多功能」→「管理員面板」，"
                                      "會收到一個登入連結（10 分鐘內有效）。"), "401 Unauthorized")
         if path == "/admin/logout":
             auth.logout(sid)
@@ -402,6 +434,6 @@ def login_card(url: str) -> dict:
                              {"type": "text", "text": "按下面的按鈕登入。連結 10 分鐘內有效、只能用一次；登入後這台裝置記住 30 天。",
                               "wrap": True, "size": "sm", "color": "#6e6e73"}]},
                          "footer": {"type": "box", "layout": "vertical", "contents": [
-                             {"type": "button", "style": "primary", "color": "#0F6E56",
+                             {"type": "button", "style": "primary", "color": brand.GREEN,
                               "action": {"type": "uri", "label": "打開管理員面板", "uri": url}}]}}}
 

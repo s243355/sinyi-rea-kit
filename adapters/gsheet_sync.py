@@ -25,9 +25,11 @@ def sync(kind: str, tenant_id: str, *, customers, listings, url: str | None = No
             rep = customers.import_customers(tenant_id, body)
         else:
             # 試算表是「目前所有物件」的完整清單：沒出現的視為下架
-            rep = listings.import_csv(tenant_id, body, source="gsheet", replace=True)
+            # 店內物件表多半只列出售物件、沒有「交易」欄：沒寫就當出售
+            rep = listings.import_csv(tenant_id, body, source="gsheet", replace=True, default_transaction="buy")
     except ValueError as e:
         return Check(False, f"欄位對不上：{e}")
     return Check(True, f"同步完成：新增 {len(rep.new_ids)}、更新 {len(rep.changed_ids)}、沒變 {rep.unchanged_count}"
                        + (f"、有問題 {len(rep.errors)} 列" if rep.errors else ""),
-                 data={"new": len(rep.new_ids), "changed": len(rep.changed_ids), "errors": rep.errors[:5]})
+                 data={"new": len(rep.new_ids), "changed": len(rep.changed_ids), "errors": rep.errors[:5],
+                       "new_ids": list(rep.new_ids)})

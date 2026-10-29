@@ -167,9 +167,37 @@ def match_replies(found, *, intro: str, signature: str | None, head: str, quick=
     return [message(head + more, quick)] + cards
 
 
+def tell_colleagues(rec: dict, buyers: list[dict], *, adder: str, notify) -> list[str]:
+    """全店共用：新物件配到「同事的買方」→ 通知那位同事（一人一則短訊，不帶客人資料以外的東西）。回通知了誰。
+
+    notify(租戶, 文字) 由組裝的地方給（走推播閘、吃推播額度）；沒給就不通知。"""
+    if notify is None:
+        return []
+    by_owner: dict[str, list[dict]] = {}
+    for c in buyers:
+        if c.get("owner") and c["owner"] != adder:
+            by_owner.setdefault(c["owner"], []).append({k: v for k, v in c.items() if k != "owner_name"})
+    told = []
+    for owner, group in sorted(by_owner.items()):
+        found = pairs([rec], group)
+        if not found:
+            continue
+        names = "、".join(dict.fromkeys(label for _, label, _, _ in found))
+        text = (f"🔔 {rec.get('owner_name') or '同事'}新增了 {rec['id']}（{rec.get('area') or ''}｜"
+                f"{rec.get('property_type') or ''}｜{flex.format_price(rec)}），配到你的買方：{names}。\n"
+                f"打「{rec['id']}」看物件，記得先跟同事確認再約看。")
+        try:
+            notify(owner, text)
+            told.append(owner)
+        except Exception:
+            pass                                        # 通知失敗不影響存物件
+    return told
+
+
 def make_listing_handler(listings: CsvListingSource, customers: CsvCustomerSource, *, now=datetime.datetime.now,
-                         auto_search=lambda: False):
-    """auto_search()：搜尋服務接上了沒（接上才說「今日報告會自動找」，沒接就講實話）。"""
+                         auto_search=lambda: False, notify_colleague=None, adder_name=None):
+    """auto_search()：搜尋服務接上了沒（接上才說「今日報告會自動找」，沒接就講實話）。
+    notify_colleague(租戶, 文字)：全店共用時，新物件配到同事的買方就通知他；adder_name(租戶) 給通知裡的人名。"""
     store = listings.store
 
     def handler(ctx):
@@ -231,10 +259,16 @@ def make_listing_handler(listings: CsvListingSource, customers: CsvCustomerSourc
                     rec = listings.save_one(tenant, {**draft["listing"], "own": True, "source": "line",
                                                      "listed_at": now().date().isoformat()})
                     draft = None
-                    found = pairs([rec], customers.list_customers(tenant))
-                    head = (f"✓ 已存成 {rec['id']}。你的買方裡有 {len(found)} 位可能適合，卡片往左滑；"
+                    buyers = customers.list_customers(tenant)
+                    found = pairs([rec], buyers)
+                    if adder_name:
+                        rec = {**rec, "owner_name": adder_name(tenant)}
+                    told = tell_colleagues(rec, buyers, adder=tenant, notify=notify_colleague)
+                    head = (f"✓ 已存成 {rec['id']}。買方裡有 {len(found)} 位可能適合，卡片往左滑；"
                             "按「📤 分享給客戶」用你自己的 LINE 傳給他。" if found else
-                            f"✓ 已存成 {rec['id']}。目前你的買方沒有適合這間的；之後新增買方會自動比對。")
+                            f"✓ 已存成 {rec['id']}。目前買方裡沒有適合這間的；之後新增買方會自動比對。")
+                    if told:
+                        head += f"\n（已通知 {len(told)} 位同事：他們的買方也配到這間）"
                     replies = match_replies(found, intro=f"{rec['id']} 適合的客人", signature=signature, head=head,
                                             quick=("新增物件", "我的物件", "新增買方"))
                 elif text in START_WORDS | LIST_WORDS | DIGEST_WORDS or by_id or drafts.looks_like_command(text):
@@ -247,7 +281,7 @@ def make_listing_handler(listings: CsvListingSource, customers: CsvCustomerSourc
                     except ValueError as e:
                         replies = [message(str(e)), question(draft)]
             elif text in LIST_WORDS:
-                rows = listings.list_all(tenant)
+                rows = [x for x in listings.list_all(tenant) if not x.get("owner_name")]   # 全店共用時只列自己的
                 own = [x for x in rows if x.get("own")] or rows
                 if not own:
                     replies = [message("你還沒有物件。按「新增物件」把手上的委託加進來，馬上比對你的買方。", ("新增物件",))]

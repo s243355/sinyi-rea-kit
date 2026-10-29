@@ -3,17 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>房仲自動化神器｜一鍵串接精靈</title>
+<title>信義房仲小幫手｜一鍵串接精靈</title>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--mute:#5b6676;--line:#e3e7ee;--brand:#0b7a5a;--brand2:#e8f5f0;--bad:#b42318;--badbg:#fdecea;--warn:#8a5a00;--warnbg:#fff6e0}
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--mute:#5b6676;--line:#e3e7ee;--brand:#0a8a43;--brand2:#e7f5ec;--bad:#b42318;--badbg:#fdecea;--warn:#8a5a00;--warnbg:#fff6e0}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 "Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif}
 .wrap{max-width:880px;margin:0 auto;padding:20px 16px 60px}
 h1{font-size:22px;margin:4px 0 2px}
 .sub{color:var(--mute);margin:0 0 16px}
-.rent{background:#fff;border:2px solid var(--brand);border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
-.rent b{color:var(--brand)}
-.rent a{margin-left:auto}
 nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 nav button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit}
 nav button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
@@ -61,10 +58,6 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
   <h1>一鍵串接精靈</h1>
   <p class="sub">照著每一步點、複製、貼上就好，不用改任何設定檔。金鑰只存在這台電腦，存好之後畫面不會再顯示。</p>
 
-  <div class="rent">
-    <div>🖥️ <b>不想自己架主機、顧網路？</b> 跟我們租主機：LINE、網址、備份我們幫你弄好，你只要用手機。</div>
-    <a class="btn ghost" id="rentLink" href="https://lin.ee/pdYGARu" target="_blank" rel="noopener">LINE 問租主機</a>
-  </div>
 
   <div class="card" id="health" hidden style="border-color:#e5b5b0;background:var(--badbg)">
     <h2 style="color:var(--bad)">⚠️ 有串接出問題了</h2>
@@ -75,7 +68,7 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
     <button data-t="line" class="on"><span class="dot" id="d-line"></span>LINE 官方帳號</button>
     <button data-t="search"><span class="dot" id="d-search"></span>591／樂屋新物件</button>
     <button data-t="gsheet"><span class="dot" id="d-gsheet"></span>Google 試算表</button>
-    <button data-t="lvr"><span class="dot" id="d-lvr"></span>實價登錄</button>
+    <button data-t="lvr"><span class="dot" id="d-lvr"></span>實價登錄・行情</button>
     <button data-t="moi"><span class="dot" id="d-moi"></span>地政平台（選用）</button>
   </nav>
 
@@ -119,11 +112,10 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
     </div>
 
     <div class="card" id="c-l4"><h3><span class="num">4</span>設定 Webhook（讓 LINE 連到這台電腦）</h3>
-      <p>LINE 要能從網路連進來，所以需要一個 <b>https 開頭的對外網址</b>，指到這台電腦的 <code>http://127.0.0.1:8080</code>。三選一：</p>
+      <p>LINE 要能從網路連進來，所以需要一個 <b>https 開頭的對外網址</b>，指到這台電腦的 <code>http://127.0.0.1:8080</code>。二選一：</p>
       <ul>
         <li><b>A. Cloudflare Tunnel（免費、推薦）</b>：照 <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/" target="_blank" rel="noopener">Cloudflare 官方教學</a> 建一條通道，服務網址填 <code>http://127.0.0.1:8080</code>，會得到像 <code>https://rea.你的網域.com</code> 的網址。<br><small>只是試用的話，可以先下載 cloudflared 執行 <code>cloudflared tunnel --url http://127.0.0.1:8080</code>，會給一個 trycloudflare.com 的臨時網址；但它每次重開都會變，正式使用請用固定網址。</small></li>
         <li><b>B. 自己的主機或 VPS</b>：用反向代理（Caddy、Nginx）加 HTTPS，轉到 8080。</li>
-        <li><b>C. 不想弄 → <a href="https://lin.ee/pdYGARu" target="_blank" rel="noopener">跟我們租主機</a></b>，網址我們幫你設好。</li>
       </ul>
       <label for="l-base">對外網址（只要網域）</label>
       <input id="l-base" placeholder="https://rea.example.com" spellcheck="false">
@@ -144,11 +136,20 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
     </div>
 
     <div class="card" id="c-l6"><h3><span class="num">6</span>誰可以用這個官方帳號？</h3>
-      <p>預設只有你邀請的人能用，陌生人加好友不會用掉你的推播與搜尋額度。要加同事：手機打「管理員面板」→「仲介」→「＋ 邀請新成員」，把 6 位數碼給他，他加好友後傳這組數字就開始了（每個人的客人和物件互相看不到）。</p>
+      <p>預設只有你邀請的人能用，陌生人加好友不會用掉你的推播與搜尋額度。要加同事：手機打「管理員面板」→「仲介」→「＋ 邀請新成員」，把 6 位數碼給他，他加好友後傳這組數字就開始了（客人和物件要不要全店共用，看第 7 步）。</p>
       <label for="l-signup">加入方式</label>
       <select id="l-signup"><option value="invite">只有我邀請的人（建議）</option><option value="open">任何加好友的人都能按「同意並開始」</option></select>
       <button class="btn" data-act="lineSignup">儲存</button>
       <div class="res" id="r-lineSignup"></div>
+    </div>
+
+    <div class="card" id="c-l7"><h3><span class="num">7</span>全店共用買方與物件</h3>
+      <p>店內同仁接同一個官方帳號時，建議用<b>全店共用</b>：大家新增的買方與物件放在同一個池子，同仁新增物件時會配到全店的買方，配到別人的買方會自動通知那位同仁。只有建立的人和店長（管理員）能修改或下架。</p>
+      <p class="note">每個人的「匯出／刪除我的資料」只會動到自己建的客人和物件。切換模式時，已經建好的資料不會自動搬家，請在開始使用前決定。</p>
+      <label for="t-mode">模式</label>
+      <select id="t-mode"><option value="shared">全店共用（建議）</option><option value="solo">各自獨立</option></select>
+      <button class="btn" data-act="teamMode">儲存</button>
+      <div class="res" id="r-teamMode"></div>
     </div>
   </section>
 
@@ -181,7 +182,8 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
   <!-- ═══════════ Google Sheet ═══════════ -->
   <section id="s-gsheet">
     <div class="card"><h2>Google 試算表（客戶需求、物件清單）</h2>
-      <p>你習慣用試算表記客人需求、自己的物件，就串進來：每天自動同步一次，LINE 上的配對就會用到。只讀不寫，不會改你的表。</p>
+      <p>店裡用一張<b>店內物件表</b>記全店的委託物件，就串進來：每天早上自動同步一次，新物件會配全店的買方，配到誰的買方就用 LINE 通知誰。只讀不寫，不會改你的表。</p>
+      <p>「負責同仁」欄填管理員面板登記的名字（例：家儒），那間物件就算他的：他可以在 LINE 上下架，配對通知也會提到他。沒有「交易」欄的表一律當出售。</p>
       <p class="note">試算表要開「知道連結的任何人可以檢視」。所以<b>表裡請只放需求條件和代號</b>（例：王先生→A001），不要放電話、身分證、地址——就算放了，系統也不會匯入這些欄位。</p>
     </div>
     <div class="card"><h3><span class="num">1</span>照範本建表</h3>
@@ -200,19 +202,36 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
       <button class="btn" data-act="gsheetCustomers">檢查並儲存</button>
       <button class="btn ghost" data-act="gsheetSyncCustomers">立即同步</button>
       <div class="res" id="r-gsheetCustomers"></div>
-      <label for="g-listings">物件試算表網址（選填）</label>
+      <label for="g-listings">店內物件表網址</label>
       <input id="g-listings" type="password" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/…/edit">
       <div id="g-listings-saved" class="saved" hidden>✓ 已串接（網址不顯示）。</div>
       <button class="btn" data-act="gsheetListings">檢查並儲存</button>
       <button class="btn ghost" data-act="gsheetSyncListings">立即同步</button>
       <div class="res" id="r-gsheetListings"></div>
       <div><button class="btn danger" data-clear="gsheet">取消試算表串接</button></div>
-      <small>「立即同步」要先完成 LINE 第 5 步（資料會放進管理員的資料夾）。物件表是「目前所有物件」的完整清單：表裡刪掉的物件會當成下架。</small>
+      <small>「立即同步」要先完成 LINE 第 5 步（資料會放進管理員的資料夾）。物件表是「目前所有物件」的完整清單：表裡刪掉的物件會當成下架（同仁在 LINE 上新增的物件不受影響）。</small>
     </div>
   </section>
 
   <!-- ═══════════ 實價登錄 ═══════════ -->
   <section id="s-lvr">
+    <div class="card"><h2>ToEstate 社區行情（建議）</h2>
+      <p>同仁在 LINE 打「<b>行情 社區名</b>」或「<b>行情 行政區</b>」，會用 <a href="https://toestate.tw/" target="_blank" rel="noopener">ToEstate</a> 查實價登錄：社區最近成交、樓層、坪數、單價（已扣車位），還有成交備註裡的瑕疵提醒。ToEstate 連不上時，行政區會自動改用下面的內政部開放資料。</p>
+      <small>ToEstate 官方說明為免金鑰；有商用授權金鑰的請填在下面（原則上以 ToEstate 提供的接法為準）。資料只供參考，不是估價。</small>
+    </div>
+    <div class="card" id="c-te"><h3><span class="num">1</span>連線測試</h3>
+      <div class="row">
+        <div><label for="te-url">ToEstate 網址（留空用預設；打 off 關閉）</label><input id="te-url" autocomplete="off" spellcheck="false" placeholder="https://toestate.tw/mcp"></div>
+        <div><label for="te-key">商用授權金鑰（選填）</label><input id="te-key" type="password" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <label for="te-city">預設縣市（只打「行情 南屯」時用哪個縣市）</label>
+      <select id="te-city"></select>
+      <div id="te-saved" class="saved" hidden>✓ 已有金鑰（不顯示）。</div>
+      <button class="btn" data-act="toestate">測試並儲存</button>
+      <button class="btn danger" data-clear="toestate">清除設定</button>
+      <div class="res" id="r-toestate"></div>
+      <small>測試會實際查一次「台中市南屯區」的行政區統計。系統預設每天最多查 300 次，查過的 6 小時內不重查。</small>
+    </div>
     <div class="card"><h2>內政部實價登錄（免金鑰、免費）</h2>
       <p>政府開放資料，不用申請。選你常跑的縣市，系統會下載最近一季的買賣資料，讓你查行政區的成交概況（筆數、單價中位數、最近幾筆）。只做概況，不做估價。</p>
       <small>資料來源：<a href="https://plvr.land.moi.gov.tw/DownloadOpenData" target="_blank" rel="noopener">內政部不動產交易實價查詢服務網・開放資料</a>（政府資料開放授權條款）。</small>
@@ -272,7 +291,7 @@ footer{color:var(--mute);font-size:13px;margin-top:30px}
   </section>
 
   <footer>
-    <span class="custom-ad">需要改成你們公司的版本、幫忙安裝或串接？加 LINE 官方帳號 <a href="https://line.me/R/ti/p/@812ibtir" target="_blank" rel="noopener">@812ibtir</a>（留白事務所・林其衞），原則上 1～2 個工作天回覆報價。</span><br>
+    <span class="custom-ad">本工具改自開源專案 <a href="https://github.com/Larryveryhandsome/rea-kit" target="_blank" rel="noopener">rea-kit</a>（作者：林其衞／留白事務所），署名詳見 NOTICE。</span><br>
     原始碼授權：Apache-2.0。這個頁面只在架設的電腦上打得開。
   </footer>
 </div>
@@ -313,6 +332,7 @@ const ACTS = {
   lineKeys: b => run(b, "lineKeys", "line/keys", {secret: $("l-secret").value, token: $("l-token").value},
                      r => { if (r.ok) { $("l-secret").value = ""; $("l-token").value = ""; if (r.data.basic_id) $("l-basic").textContent = r.data.basic_id; } }),
   lineSignup: b => run(b, "lineSignup", "line/signup", {mode: $("l-signup").value}),
+  teamMode: b => run(b, "teamMode", "team/mode", {mode: $("t-mode").value}),
   lineWebhook: b => run(b, "lineWebhook", "line/webhook", {public_base: $("l-base").value}),
   lineClaim: b => run(b, "lineClaim", "line/claim", {}, r => {
     if (!r.ok) return;
@@ -330,6 +350,8 @@ const ACTS = {
   gsheetListings: b => run(b, "gsheetListings", "gsheet/check", {kind: "listings", url: $("g-listings").value}, r => { if (r.ok) $("g-listings").value = ""; }),
   gsheetSyncCustomers: b => run(b, "gsheetCustomers", "gsheet/sync", {kind: "customers"}),
   gsheetSyncListings: b => run(b, "gsheetListings", "gsheet/sync", {kind: "listings"}),
+  toestate: b => run(b, "toestate", "toestate/check", {url: $("te-url").value, key: $("te-key").value, default_city: $("te-city").value},
+                     r => { if (r.ok) $("te-key").value = ""; }),
   lvr: b => run(b, "lvr", "lvr/check", {counties: [...document.querySelectorAll("#lvr-counties input:checked")].map(x => x.value).join("、")}),
   lvrQuery: b => run(b, "lvrQuery", "lvr/query", {county: $("lq-county").value, district: $("lq-district").value}, lvrResult),
   moi: b => run(b, "moi", "moi/check", {client_id: $("m-id").value, secret: $("m-secret").value, daily_limit: $("m-limit").value},
@@ -368,7 +390,12 @@ function paint(s) {
   $("d-line").classList.toggle("ok", !!(s.line.keys && s.line.admin));
   $("d-search").classList.toggle("ok", !!s.search.key);
   $("d-gsheet").classList.toggle("ok", !!(s.gsheet.customers || s.gsheet.listings));
-  $("d-lvr").classList.toggle("ok", !!s.lvr.counties);
+  $("d-lvr").classList.toggle("ok", !!(s.lvr.counties || (s.toestate && !s.toestate.off)));
+  if (s.toestate) {
+    if (s.toestate.url && !$("te-url").value) $("te-url").value = s.toestate.url;
+    $("te-saved").hidden = !s.toestate.key;
+    if (s.toestate.default_city) $("te-city").value = s.toestate.default_city;
+  }
   $("d-moi").classList.toggle("ok", !!s.moi.keys);
   $("l-keys-saved").hidden = !s.line.keys;
   $("c-l3").classList.toggle("done", !!s.line.keys);
@@ -383,8 +410,8 @@ function paint(s) {
   if (s.moi.daily_limit) $("m-limit").value = s.moi.daily_limit;
   const chosen = (s.lvr.counties || "").split("、").filter(Boolean);
   document.querySelectorAll("#lvr-counties input").forEach(x => { if (chosen.includes(x.value)) x.checked = true; });
-  if (s.rent_url) $("rentLink").href = s.rent_url;
   if (s.signup_mode) $("l-signup").value = s.signup_mode;
+  if (s.team_mode) $("t-mode").value = s.team_mode;
   const NAMES = {line: "LINE 官方帳號", gsheet_customers: "Google 試算表（客戶）", gsheet_listings: "Google 試算表（物件）", search: "591／樂屋搜尋服務", moi: "地政平台"};
   const bad = Object.entries(s.health || {}).filter(([k, v]) => v && v.ok === false);
   const box = $("health-list"); box.textContent = "";
@@ -400,7 +427,9 @@ function init() {
     const l = document.createElement("label"), i = document.createElement("input");
     i.type = "checkbox"; i.value = c; l.appendChild(i); l.appendChild(document.createTextNode(c)); box.appendChild(l);
     const o = document.createElement("option"); o.value = o.textContent = c; sel.appendChild(o);
+    const o2 = document.createElement("option"); o2.value = o2.textContent = c; $("te-city").appendChild(o2);
   });
+  $("te-city").value = "台中市";
   sel.addEventListener("change", () => { $("lq-district").innerHTML = '<option value="">（按查詢載入行政區）</option>'; });
   sel.value = "台中市";
   document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {

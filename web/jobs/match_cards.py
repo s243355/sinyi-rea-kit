@@ -59,6 +59,8 @@ def pairs(listings: Iterable[Mapping[str, Any]], customers: Iterable[Mapping[str
         except ValueError:
             continue
         label = cust.get("label") or cust["customer_id"]
+        if cust.get("owner_name"):                      # 全店共用：同事的客人標出是誰的，配到要找他
+            label += f"（{cust['owner_name']}的客人）"
         line = need_line(need)
         for bucket in ("priority", "review"):
             for r in result.get(bucket, []):

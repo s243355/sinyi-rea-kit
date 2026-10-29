@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import urllib.parse
 from typing import Any, Mapping
+from core import brand
 
 INK1 = "#191C22"
 INK2 = "#8A93A3"
-LISTING = {"bar": "#0F6E56", "tint": "#E1F5EE", "ink": "#04342C"}
+LISTING = {"bar": brand.GREEN, "tint": brand.TINT, "ink": brand.INK}
 REVIEW = {"bar": "#534AB7", "tint": "#EEEDFE", "ink": "#26215C"}
 
 MAX_ALT = 400

@@ -194,7 +194,7 @@ def get_push_quota(ctx: ToolContext) -> dict:
 
 # ── get_line_bind_code（v0.2）──
 def get_line_bind_code(ctx: ToolContext) -> dict:
-    """給仲介一組 6 碼綁定碼：加「房仲自動化神器」官方帳號好友後傳「綁定 123456」，之後新案通知就送到他的 LINE。"""
+    """給仲介一組 6 碼綁定碼：加店內官方帳號好友後傳「綁定 123456」，之後新案通知就送到他的 LINE。"""
     if ctx.bind_registry is None:
         return _err("not_ready", "共用通知帳號還沒開通")
     code = ctx.bind_registry.issue_code(ctx.tenant_id)

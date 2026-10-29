@@ -46,6 +46,7 @@ class Resp:
     status: int
     body: bytes
     content_type: str = ""
+    session_id: str = ""                # MCP 伺服器給的 Mcp-Session-Id（ToEstate 用；其他串接用不到）
 
     def json(self):
         try:
@@ -67,7 +68,8 @@ def http(method: str, url: str, *, headers: dict | None = None, body: bytes | No
             body = r.read(MAX_RESPONSE + 1)
             if len(body) > MAX_RESPONSE:
                 raise NetError("回應太大")
-            return Resp(getattr(r, "status", 200), body, r.headers.get("Content-Type", "") if r.headers else "")
+            return Resp(getattr(r, "status", 200), body, r.headers.get("Content-Type", "") if r.headers else "",
+                        (r.headers.get("Mcp-Session-Id", "") or "") if r.headers else "")
     except urllib.error.HTTPError as e:
         try:
             raw = e.read()
@@ -226,7 +228,7 @@ def line_test_webhook(token: str, endpoint: str, *, opener=None, api: str = LINE
     if "refused" in low:
         return Check(False, "LINE 連過去被拒絕：主機有開，但服務沒在聽。", ["確認服務有啟動、通道指到正確的埠"])
     return Check(False, f"LINE 連不到你的服務（狀態 {code or '無'}）。",
-                 ["確認服務和通道都在跑，再按一次測試", "還是不行，可以截圖這個畫面到 LINE @812ibtir 問我們"],
+                 ["確認服務和通道都在跑，再按一次測試", "還是不行，請截圖這個畫面給店長或負責架設的人"],
                  data={"status": code})
 
 
@@ -292,7 +294,7 @@ def check_sheet(url: str, kind: str, *, opener=None) -> Check:
                 rep = CsvCustomerSource(store).import_customers("dry-run", body)
             else:
                 from adapters.csv.listing_source import CsvListingSource
-                rep = CsvListingSource(store).import_csv("dry-run", body)
+                rep = CsvListingSource(store).import_csv("dry-run", body, default_transaction="buy")
         except ValueError as e:
             return Check(False, f"試算表讀到了，但欄位對不上：{e}",
                          ["第一列要是欄位名稱；可以直接下載本專案的範本照抄（精靈裡有連結）"])
@@ -361,6 +363,26 @@ def check_lvr(counties: str, *, opener=None, today: datetime.date | None = None)
 
 # ═════════════════ 內政部地政整合資訊服務共享協作平台（付費 API）═════════════════
 MOI_BASE = "https://copapi.moi.gov.tw"
+
+
+def check_toestate(url: str, key: str = "", *, opener=None, store=None) -> Check:
+    """實際握手並查一次「台中市南屯區」的行政區統計（用掉 1 次查詢）。"""
+    import tempfile
+    from adapters.storage import TenantStore
+    from adapters.toestate import DEFAULT_URL, ToEstateClient, ToEstateError
+    url = (url or DEFAULT_URL).strip()
+    if not url.startswith("https://"):
+        return Check(False, "網址要用 https:// 開頭。", [f"沒有特別的網址就留空，會用預設的 {DEFAULT_URL}"])
+    with tempfile.TemporaryDirectory() as tmp:          # 測試不留快取，正式查詢才快取
+        client = ToEstateClient(store or TenantStore(tmp), url=url, key=key or "", opener=opener, env={})
+        try:
+            stats = client.area_stats("台中市", "南屯區")
+        except ToEstateError as e:
+            return Check(False, str(e), ["確認網址正確（預設 " + DEFAULT_URL + "）",
+                                         "有填金鑰的話，確認金鑰沒有多複製空白", "公司網路有防火牆的話，請網管放行 toestate.tw"])
+    if not stats or not stats.get("n_1y"):
+        return Check(False, "連上了，但查不到測試資料（台中市南屯區）。請稍後再試，或聯絡 ToEstate 確認服務狀態。")
+    return Check(True, f"連線成功：台中市南屯區近一年 {stats['n_1y']} 筆成交。", data={"n_1y": stats["n_1y"]})
 
 
 def check_moi(client_id: str, secret: str, *, opener=None, base: str = MOI_BASE) -> Check:
